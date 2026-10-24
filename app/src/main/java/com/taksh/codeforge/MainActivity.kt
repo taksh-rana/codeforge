@@ -48,6 +48,18 @@ class MainActivity : Activity() {
                 return true
             }
         }
+        // warm up DNS + TLS so the first compile is faster
+        thread {
+            try {
+                val c = URL("https://wandbox.org/").openConnection() as HttpURLConnection
+                c.requestMethod = "HEAD"
+                c.connectTimeout = 8000
+                c.readTimeout = 8000
+                c.responseCode
+                c.disconnect()
+            } catch (_: Exception) {
+            }
+        }
         web.loadUrl("file:///android_asset/index.html")
     }
 
