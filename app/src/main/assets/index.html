@@ -292,6 +292,34 @@ int main(void) {
     return 0;
 }
 `},
+{n:"Turbo C++ style",l:"cpp",c:`#include <iostream.h>
+#include <conio.h>
+
+void main()
+{
+    int n, i, f = 1;
+    clrscr();
+    cout << "Enter a number: ";
+    cin >> n;
+    for (i = 1; i <= n; i++)
+        f = f * i;
+    cout << "Factorial = " << f << endl;
+    getch();
+}
+`},
+{n:"Turbo C style",l:"c",c:`#include <stdio.h>
+#include <conio.h>
+
+void main()
+{
+    int a, b;
+    clrscr();
+    printf("Enter two numbers: ");
+    scanf("%d %d", &a, &b);
+    printf("Sum = %d\\n", a + b);
+    getch();
+}
+`},
 {n:"Pointers & structs",l:"c",c:`#include <stdio.h>
 
 typedef struct {
@@ -321,7 +349,9 @@ try{S=JSON.parse(localStorage.getItem("cf2")||"null");}catch(e){S=null;}
 if(!S||!S.files||!S.files.length){
   S={files:[{id:1,name:"main.cpp",code:TPL[0].c}],active:1,nid:2,stdin:""};
 }
-S.set=Object.assign({fs:14,compiler:"gcc",cstd:"c17",cppstd:"c++17",opt:"-O2",wall:true,auto:true},S.set||{});
+var oldSet=S.set||{};
+if(!oldSet.v){delete oldSet.opt;delete oldSet.wall;}
+S.set=Object.assign({fs:14,compiler:"gcc",cstd:"c17",cppstd:"c++17",opt:"-O0",wall:false,auto:true,turbo:true,v:2},oldSet);
 S.nid=S.nid||100;
 var saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(function(){try{localStorage.setItem("cf2",JSON.stringify(S));}catch(e){}},300);}
@@ -550,6 +580,7 @@ function settingsDialog(){
   var s=S.set;
   openModal('<h3>Settings</h3>'+
    '<div class="set"><span>Font size</span><input type="range" id="s_fs" min="11" max="20" value="'+s.fs+'"></div>'+
+   '<div class="set"><span>Turbo C compatibility<br><small style="color:var(--gray)">conio.h, clrscr, getch, void main, iostream.h</small></span><button class="tg'+(s.turbo?" on":"")+'" id="s_t"></button></div>'+
    '<div class="set"><span>Compiler</span><select id="s_comp">'+opts([["gcc","GCC (latest)"],["clang","Clang (latest)"]],s.compiler)+'</select></div>'+
    '<div class="set"><span>C standard</span><select id="s_c">'+opts([["c89","C89"],["c99","C99"],["c11","C11"],["c17","C17"],["c2x","C23"],["gnu17","GNU17"]],s.cstd)+'</select></div>'+
    '<div class="set"><span>C++ standard</span><select id="s_cpp">'+opts([["c++11","C++11"],["c++14","C++14"],["c++17","C++17"],["c++20","C++20"],["c++23","C++23"],["gnu++17","GNU++17"]],s.cppstd)+'</select></div>'+
@@ -562,13 +593,14 @@ function settingsDialog(){
   $("s_c").onchange=function(){s.cstd=this.value;save();};
   $("s_cpp").onchange=function(){s.cppstd=this.value;save();};
   $("s_opt").onchange=function(){s.opt=this.value;save();};
+  $("s_t").onclick=function(){s.turbo=!s.turbo;this.classList.toggle("on");save();};
   $("s_w").onclick=function(){s.wall=!s.wall;this.classList.toggle("on");save();};
   $("s_a").onclick=function(){s.auto=!s.auto;this.classList.toggle("on");save();};
   $("ok").onclick=closeModal;
 }
 function aboutDialog(){
   openModal('<div class="about-logo">&lt;/&gt;</div>'+
-   '<div class="center"><h3 style="margin-bottom:2px">CodeForge</h3><p style="margin:0">C &amp; C++ compiler &middot; v1.0</p></div>'+
+   '<div class="center"><h3 style="margin-bottom:2px">CodeForge</h3><p style="margin:0">C &amp; C++ compiler &middot; v1.1</p></div>'+
    '<div class="feat">'+
      '<div><b>No ads</b>Zero ads, zero trackers</div>'+
      '<div><b>Lightweight</b>Tiny install size</div>'+
@@ -576,6 +608,8 @@ function aboutDialog(){
      '<div><b>Multi-file</b>Tabs, templates, autosave</div>'+
      '<div><b>Smart editor</b>Highlighting, auto-indent, symbol bar</div>'+
      '<div><b>Tap-to-jump</b>Tap an error to go to its line</div>'+
+     '<div><b>Turbo C mode</b>conio.h, void main, iostream.h</div>'+
+     '<div><b>Live timer</b>See compile time as it runs</div>'+
    '</div>'+
    '<p class="center" style="color:var(--white);margin-top:4px">Built by <b>Taksh Rana</b></p>'+
    '<p class="center"><a href="mailto:ranataksh63@gmail.com">ranataksh63@gmail.com</a></p>'+
@@ -631,20 +665,64 @@ function gotoLine(l,c){
   ed.setSelectionRange(pos+Math.max(0,c-1),pos+len);
   syncScroll();
 }
+function turboConvert(code,c){
+  if(/#\s*include\s*<\s*graphics\.h\s*>/.test(code))
+    return {err:"graphics.h (BGI graphics) can't run here because there is no Turbo C graphics screen.\nText-mode programs (printf, cout, scanf, cin) work fine."};
+  var out=code,needStd=false;
+  out=out.replace(/#\s*include\s*<\s*(iostream|fstream|iomanip)\.h\s*>/g,function(m,h){needStd=true;return "#include <"+h+">";});
+  out=out.replace(/#\s*include\s*<\s*(conio|dos|bios|io|graphics)\.h\s*>/g,"");
+  out=out.replace(/#\s*include\s*<\s*(alloc|process)\.h\s*>/g,"#include <stdlib.h>");
+  out=out.replace(/#\s*include\s*<\s*mem\.h\s*>/g,"#include <string.h>");
+  out=out.replace(/\bvoid\s+main\s*\(/g,"int main(");
+  var shim="",CF=c?"static":"inline";
+  var fns={
+    getch:CF+" int getch(void){return getchar();}",
+    getche:CF+" int getche(void){int c=getchar();if(c!=EOF)putchar(c);return c;}",
+    clrscr:CF+" void clrscr(void){}",
+    gotoxy:CF+" void gotoxy(int x,int y){(void)x;(void)y;}",
+    textcolor:CF+" void textcolor(int c){(void)c;}",
+    textbackground:CF+" void textbackground(int c){(void)c;}",
+    clreol:CF+" void clreol(void){}",
+    kbhit:CF+" int kbhit(void){return 0;}",
+    delay:CF+" void delay(unsigned ms){(void)ms;}"
+  };
+  for(var k in fns){
+    var used=new RegExp("\\b"+k+"\\s*\\(").test(out);
+    var own=new RegExp("\\b(int|void|char|float|double|long)\\s+"+k+"\\s*\\(").test(out);
+    if(used&&!own)shim+=fns[k]+"\n";
+  }
+  var pre="";
+  if(shim)pre+="#include <stdio.h>\n"+shim;
+  if(needStd)pre+="#include <iostream>\nusing namespace std;\n";
+  if(pre)pre+="#line 1\n";
+  return {code:pre+out};
+}
 var running=false;
 function run(){
   if(running)return;
   ed.blur();
   var f=cur(),c=isC(f);
-  var flags=["-std="+(c?S.set.cstd:S.set.cppstd),S.set.opt];
-  if(S.set.wall)flags.push("-Wall","-Wextra");
-  var comp=(S.set.compiler==="clang"?"clang-head":"gcc-head")+(c?"-c":"");
-  var payload={compiler:comp,code:f.code,stdin:S.stdin||"","compiler-option-raw":flags.join("\n"),"runtime-option-raw":"",save:false};
+  var code=f.code,flags,comp;
+  if(S.set.turbo){
+    var tc=turboConvert(code,c);
+    if(tc.err){setPtab("out");outEl.innerHTML='<span class="e">'+esc(tc.err)+"</span>";return;}
+    code=tc.code;
+    flags=c?["-std=gnu89",S.set.opt,"-w"]:["-std="+S.set.cppstd,S.set.opt,"-fpermissive","-w"];
+    comp="gcc-head"+(c?"-c":"");
+  }else{
+    flags=["-std="+(c?S.set.cstd:S.set.cppstd),S.set.opt];
+    if(S.set.wall)flags.push("-Wall","-Wextra");
+    comp=(S.set.compiler==="clang"?"clang-head":"gcc-head")+(c?"-c":"");
+  }
+  var payload={compiler:comp,code:code,stdin:S.stdin||"","compiler-option-raw":flags.join("\n"),"runtime-option-raw":"",save:false};
   running=true;$("run").classList.add("busy");
   setPtab("out");
-  outEl.innerHTML='<span class="dim"><span class="spin"></span>Compiling '+esc(f.name)+" with "+(S.set.compiler==="clang"?"Clang":"GCC")+"\u2026</span>";
   var t0=Date.now();
+  var label="Compiling "+f.name+(S.set.turbo?" (Turbo C mode)":"");
+  outEl.innerHTML='<span class="dim"><span class="spin"></span>'+esc(label)+"\u2026 <span id=\"tm\">0.0s</span></span>";
+  var tick=setInterval(function(){var e=$("tm");if(e)e.textContent=((Date.now()-t0)/1000).toFixed(1)+"s";},100);
   var done=function(r){
+    clearInterval(tick);
     running=false;$("run").classList.remove("busy");
     var ms=Date.now()-t0,h="";
     if(r.error){outEl.innerHTML='<span class="e">'+esc(r.error)+"</span>";return;}
