@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>CodeForge</title>
+<style>
+:root{
+  --black:#0b0c0a;--char:#161813;--char2:#20231c;--line:#2d3128;
+  --gray:#8b8f84;--gray2:#5d6157;--white:#f3f4ee;
+  --olive:#556b2f;--olive2:#8aa84a;--olive3:#c6d59b;
+  --err:#e07a6b;--warn:#d6b04c;--fs:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:var(--black);color:var(--white);
+  font-family:system-ui,Roboto,"Segoe UI",sans-serif;overflow:hidden;
+  -webkit-user-select:none;user-select:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+#app{display:flex;flex-direction:column;height:100%}
+.sp{flex:1}
+
+/* header */
+header{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--char);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.2px}
+.logo{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--olive);
+  font:700 12px ui-monospace,Menlo,monospace;color:var(--white)}
+.chip{padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:var(--char2);
+  font-size:12px;font-weight:600;color:var(--olive3)}
+.run{padding:8px 16px;border-radius:10px;background:var(--olive);font-weight:700;font-size:14px;color:var(--white);
+  display:flex;align-items:center;gap:6px}
+.run:active{background:var(--olive2)}
+.run.busy{opacity:.6;pointer-events:none}
+.ib{width:36px;height:36px;border-radius:10px;font-size:20px;color:var(--gray)}
+.ib:active{background:var(--char2)}
+
+/* tabs */
+#tabs{display:flex;overflow-x:auto;background:var(--char);border-bottom:1px solid var(--line);scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+#tabs button{flex:0 0 auto;padding:9px 14px;font-size:13px;color:var(--gray);border-bottom:2px solid transparent;
+  font-family:ui-monospace,Menlo,monospace}
+#tabs button.on{color:var(--white);border-bottom-color:var(--olive2);background:var(--black)}
+#tabs button.add{color:var(--olive2);font-size:16px;padding:7px 14px}
+
+/* editor */
+#edwrap{flex:1;display:flex;min-height:0;background:var(--black)}
+#gutter{width:40px;flex:0 0 40px;overflow:hidden;background:var(--black);border-right:1px solid var(--line)}
+#gin{padding:10px 6px 40px 0;text-align:right;color:var(--gray2);white-space:pre;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:var(--fs);line-height:calc(var(--fs)*1.6)}
+#edbox{position:relative;flex:1;overflow:hidden}
+#hl,#ed{position:absolute;top:0;left:0;right:0;bottom:0;margin:0;padding:10px 12px 40px;border:0;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:var(--fs);line-height:calc(var(--fs)*1.6);
+  white-space:pre;tab-size:4;-moz-tab-size:4;letter-spacing:0;word-spacing:0}
+#hl{overflow:hidden;pointer-events:none;color:var(--white)}
+#hlc{display:block;font:inherit;line-height:inherit;will-change:transform}
+#ed{background:transparent;color:transparent;-webkit-text-fill-color:transparent;caret-color:var(--olive2);
+  resize:none;outline:none;overflow:auto;-webkit-user-select:text;user-select:text}
+#ed::selection{background:rgba(85,107,47,.55)}
+.k{color:var(--olive2);font-weight:600}
+.t{color:var(--olive3)}
+.f{color:#e6e8dc}
+.s{color:#d9c98a}
+.n{color:#c9a46a}
+.c{color:var(--gray2);font-style:italic}
+.p{color:#a9b88a}
+
+/* symbol bar */
+#sym{display:none;overflow-x:auto;background:var(--char);border-top:1px solid var(--line);scrollbar-width:none}
+#sym::-webkit-scrollbar{display:none}
+#app.typing #sym{display:flex}
+#sym button{flex:0 0 auto;min-width:40px;height:40px;padding:0 10px;font:600 16px ui-monospace,Menlo,monospace;color:var(--white)}
+#sym button:active{background:var(--olive)}
+
+/* panel */
+#panel{display:flex;flex-direction:column;height:min(38vh,280px);background:var(--char);border-top:1px solid var(--line)}
+#app.typing #panel{display:none}
+#panel.min{height:auto}
+#panel.min #out,#panel.min #stdin{display:none}
+#ptabs{display:flex;align-items:center;gap:2px;padding:0 6px;border-bottom:1px solid var(--line)}
+#ptabs button{padding:9px 10px;font-size:12px;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:.6px}
+#ptabs button.on{color:var(--olive3)}
+#ptabs .mini{color:var(--gray);text-transform:none;letter-spacing:0;font-weight:500}
+#out,#stdin{flex:1;margin:0;padding:10px 12px;overflow:auto;border:0;outline:none;background:var(--black);color:var(--white);
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;
+  -webkit-user-select:text;user-select:text}
+#stdin{display:none;resize:none}
+#out .e{color:var(--err);font-weight:600}
+#out .w{color:var(--warn);font-weight:600}
+#out .nt{color:var(--gray);font-weight:600}
+#out .ok{color:var(--olive2);font-weight:600}
+#out .dim{color:var(--gray)}
+#out a.loc{color:var(--olive3);text-decoration:underline;text-underline-offset:2px}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--gray2);border-top-color:var(--olive2);border-radius:50%;
+  animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:20}
+#modal.on{display:flex}
+.card{width:100%;max-height:86%;overflow:auto;background:var(--char);border-top:1px solid var(--line);
+  border-radius:18px 18px 0 0;padding:16px 16px 22px;-webkit-user-select:text;user-select:text}
+.card h3{margin:0 0 12px;font-size:16px}
+.card p{margin:6px 0;color:var(--gray);font-size:14px;line-height:1.5}
+.card input[type=text]{width:100%;padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--black);
+  color:var(--white);font:15px ui-monospace,Menlo,monospace;outline:none}
+.card input[type=text]:focus{border-color:var(--olive)}
+.row{display:flex;gap:10px;margin-top:14px}
+.btn{flex:1;padding:12px;border-radius:10px;background:var(--char2);border:1px solid var(--line);font-weight:600;text-align:center}
+.btn.pri{background:var(--olive);border-color:var(--olive)}
+.btn.dan{color:var(--err)}
+.item{display:flex;align-items:center;gap:12px;width:100%;padding:13px 6px;border-bottom:1px solid var(--line);text-align:left;font-size:15px}
+.item small{display:block;color:var(--gray);font-size:12px;margin-top:2px}
+.item .ic{width:28px;text-align:center;color:var(--olive2);font-size:17px}
+.set{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}
+.set select{background:var(--black);color:var(--white);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:14px}
+.set input[type=range]{width:50%;accent-color:var(--olive2)}
+.tg{width:46px;height:26px;border-radius:99px;background:var(--gray2);position:relative;flex:0 0 46px}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--white);transition:.15s}
+.tg.on{background:var(--olive)}
+.tg.on::after{left:23px}
+.about-logo{width:64px;height:64px;border-radius:18px;background:var(--olive);display:grid;place-items:center;
+  font:700 24px ui-monospace,Menlo,monospace;margin:4px auto 10px}
+.center{text-align:center}
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}
+.feat div{background:var(--black);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12.5px;color:var(--white)}
+.feat b{display:block;color:var(--olive3);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+.card a{color:var(--olive3)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--char2);border:1px solid var(--line);
+  padding:9px 16px;border-radius:99px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><span class="logo">&lt;/&gt;</span><span>CodeForge</span></div>
+    <button id="lang" class="chip">C++</button>
+    <div class="sp"></div>
+    <button id="run" class="run">&#9654; Run</button>
+    <button id="menuBtn" class="ib" aria-label="Menu">&#8942;</button>
+  </header>
+  <div id="tabs"></div>
+  <div id="edwrap">
+    <div id="gutter"><div id="gin"></div></div>
+    <div id="edbox">
+      <pre id="hl" aria-hidden="true"><code id="hlc"></code></pre>
+      <textarea id="ed" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
+    </div>
+  </div>
+  <div id="sym"></div>
+  <section id="panel">
+    <div id="ptabs">
+      <button data-t="out" class="on">Output</button>
+      <button data-t="in">Input</button>
+      <span class="sp"></span>
+      <button id="pclear" class="mini">Clear</button>
+      <button id="pcopy" class="mini">Copy</button>
+      <button id="ptoggle" class="mini">&#9662;</button>
+    </div>
+    <pre id="out"><span class="dim">Press Run to compile &amp; execute.</span></pre>
+    <textarea id="stdin" placeholder="Standard input (stdin)&#10;Type the values your program reads, one per line." spellcheck="false"></textarea>
+  </section>
+</div>
+<div id="modal"><div class="card" id="card"></div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- templates ---------- */
+var TPL=[
+{n:"Hello World",l:"cpp",c:`#include <iostream>
+
+int main() {
+    std::cout << "Hello from CodeForge!" << std::endl;
+    return 0;
+}
+`},
+{n:"Hello World",l:"c",c:`#include <stdio.h>
+
+int main(void) {
+    printf("Hello from CodeForge!\\n");
+    return 0;
+}
+`},
+{n:"Read input & add",l:"cpp",c:`#include <iostream>
+using namespace std;
+
+int main() {
+    int a, b;
+    cout << "Enter two numbers: ";
+    cin >> a >> b;
+    cout << "Sum = " << a + b << endl;
+    return 0;
+}
+`},
+{n:"Fibonacci",l:"cpp",c:`#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int n = 15;
+    vector<long long> f(n);
+    f[0] = 0; f[1] = 1;
+    for (int i = 2; i < n; i++) f[i] = f[i-1] + f[i-2];
+    for (long long x : f) cout << x << " ";
+    cout << endl;
+    return 0;
+}
+`},
+{n:"STL sort & map",l:"cpp",c:`#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <string>
+using namespace std;
+
+int main() {
+    vector<int> v = {42, 7, 19, 3, 88, 1};
+    sort(v.begin(), v.end());
+    for (int x : v) cout << x << " ";
+    cout << endl;
+
+    map<string, int> marks = {{"Asha", 82}, {"Ravi", 91}, {"Mira", 77}};
+    for (auto &p : marks)
+        cout << p.first << ": " << p.second << endl;
+    return 0;
+}
+`},
+{n:"Classes (OOP)",l:"cpp",c:`#include <iostream>
+#include <string>
+using namespace std;
+
+class Shape {
+public:
+    virtual double area() const = 0;
+    virtual string name() const = 0;
+    virtual ~Shape() {}
+};
+
+class Circle : public Shape {
+    double r;
+public:
+    Circle(double r) : r(r) {}
+    double area() const override { return 3.14159265 * r * r; }
+    string name() const override { return "Circle"; }
+};
+
+class Rect : public Shape {
+    double w, h;
+public:
+    Rect(double w, double h) : w(w), h(h) {}
+    double area() const override { return w * h; }
+    string name() const override { return "Rectangle"; }
+};
+
+int main() {
+    Shape *shapes[] = { new Circle(2.5), new Rect(3, 4) };
+    for (Shape *s : shapes) {
+        cout << s->name() << " area = " << s->area() << endl;
+        delete s;
+    }
+    return 0;
+}
+`},
+{n:"Linked list",l:"c",c:`#include <stdio.h>
+#include <stdlib.h>
+
+struct Node {
+    int data;
+    struct Node *next;
+};
+
+struct Node *push(struct Node *head, int v) {
+    struct Node *n = malloc(sizeof(struct Node));
+    n->data = v;
+    n->next = head;
+    return n;
+}
+
+int main(void) {
+    struct Node *head = NULL;
+    for (int i = 1; i <= 5; i++) head = push(head, i * 10);
+
+    for (struct Node *p = head; p; p = p->next)
+        printf("%d -> ", p->data);
+    printf("NULL\\n");
+
+    while (head) {
+        struct Node *t = head;
+        head = head->next;
+        free(t);
+    }
+    return 0;
+}
+`},
+{n:"Pointers & structs",l:"c",c:`#include <stdio.h>
+
+typedef struct {
+    char name[20];
+    int age;
+} Person;
+
+void birthday(Person *p) { p->age++; }
+
+int main(void) {
+    Person p = {"Taksh", 20};
+    birthday(&p);
+    printf("%s is now %d\\n", p.name, p.age);
+
+    int arr[] = {5, 10, 15, 20};
+    int *q = arr;
+    for (int i = 0; i < 4; i++)
+        printf("arr[%d] = %d\\n", i, *(q + i));
+    return 0;
+}
+`}
+];
+
+/* ---------- state ---------- */
+var S;
+try{S=JSON.parse(localStorage.getItem("cf2")||"null");}catch(e){S=null;}
+if(!S||!S.files||!S.files.length){
+  S={files:[{id:1,name:"main.cpp",code:TPL[0].c}],active:1,nid:2,stdin:""};
+}
+S.set=Object.assign({fs:14,compiler:"gcc",cstd:"c17",cppstd:"c++17",opt:"-O2",wall:true,auto:true},S.set||{});
+S.nid=S.nid||100;
+var saveT=null;
+function save(){clearTimeout(saveT);saveT=setTimeout(function(){try{localStorage.setItem("cf2",JSON.stringify(S));}catch(e){}},300);}
+function cur(){for(var i=0;i<S.files.length;i++)if(S.files[i].id===S.active)return S.files[i];return S.files[0];}
+function isC(f){return /\.c$/i.test(f.name);}
+
+var $=function(id){return document.getElementById(id);};
+var ed=$("ed"),hlc=$("hlc"),gin=$("gin"),outEl=$("out"),stdinEl=$("stdin");
+
+/* ---------- highlighting ---------- */
+var KW=new Set("auto break case char const continue default do double else enum extern float for goto if inline int long register restrict return short signed sizeof static struct switch typedef union unsigned void volatile while class namespace template typename public private protected virtual new delete this using try catch throw bool true false nullptr NULL constexpr override final operator friend explicit mutable noexcept static_cast dynamic_cast reinterpret_cast const_cast decltype".split(" "));
+var TY=new Set("string vector map set unordered_map unordered_set pair array deque list queue stack cout cin cerr endl size_t int8_t int16_t int32_t int64_t uint8_t uint16_t uint32_t uint64_t FILE std ostream istream".split(" "));
+var RX=/(\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|(?![\s\S])))|("(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?)|(^[ \t]*#[ \t]*\w+(?:[ \t]*<[^>\n]*>)?)|(\b\d[\w.]*)|(\b[A-Za-z_]\w*\b)/gm;
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function highlight(src){
+  var out="",last=0,m,c,t;
+  RX.lastIndex=0;
+  while((m=RX.exec(src))){
+    if(m.index>last)out+=esc(src.slice(last,m.index));
+    t=m[0];c="";
+    if(m[1]!==undefined)c="c";
+    else if(m[2]!==undefined)c="s";
+    else if(m[3]!==undefined)c="p";
+    else if(m[4]!==undefined)c="n";
+    else if(KW.has(t))c="k";
+    else if(TY.has(t))c="t";
+    else if(src.charAt(RX.lastIndex)==="(")c="f";
+    out+=c?'<span class="'+c+'">'+esc(t)+"</span>":esc(t);
+    last=RX.lastIndex;
+  }
+  out+=esc(src.slice(last));
+  return out+"\n ";
+}
+var lastLines=0;
+function render(){
+  var v=ed.value;
+  hlc.innerHTML=highlight(v);
+  var n=v.split("\n").length;
+  if(n!==lastLines){
+    var s="";for(var i=1;i<=n;i++)s+=i+"\n";
+    gin.textContent=s;lastLines=n;
+  }
+  syncScroll();
+}
+function syncScroll(){
+  hlc.style.transform="translate("+(-ed.scrollLeft)+"px,"+(-ed.scrollTop)+"px)";
+  gin.style.transform="translateY("+(-ed.scrollTop)+"px)";
+}
+ed.addEventListener("scroll",syncScroll);
+ed.addEventListener("input",function(){cur().code=ed.value;render();save();});
+
+/* ---------- editing helpers ---------- */
+var busy=false;
+function ins(t){busy=true;document.execCommand("insertText",false,t);busy=false;}
+var PAIRS={"(":")","[":"]","{":"}",'"':'"'};
+var CLOSERS=")]}\"";
+ed.addEventListener("beforeinput",function(e){
+  if(busy)return;
+  var v=ed.value,s=ed.selectionStart,en=ed.selectionEnd;
+  if(e.inputType==="insertLineBreak"||e.inputType==="insertParagraph"){
+    e.preventDefault();
+    var ls=v.lastIndexOf("\n",s-1)+1;
+    var ind=v.slice(ls,s).match(/^[ \t]*/)[0];
+    var prev=v.charAt(s-1),next=v.charAt(en);
+    if(prev==="{"){
+      if(next==="}"){
+        var t="\n"+ind+"    \n"+ind;
+        ins(t);
+        var pos=s+t.length-(1+ind.length);
+        ed.selectionStart=ed.selectionEnd=pos;
+      }else ins("\n"+ind+"    ");
+    }else ins("\n"+ind);
+    return;
+  }
+  if(S.set.auto&&e.inputType==="insertText"&&e.data&&e.data.length===1){
+    var ch=e.data;
+    if(CLOSERS.indexOf(ch)>=0&&s===en&&v.charAt(s)===ch){
+      e.preventDefault();ed.selectionStart=ed.selectionEnd=s+1;return;
+    }
+    if(PAIRS[ch]){
+      if(ch==='"'&&/\w/.test(v.charAt(s-1)||""))return;
+      e.preventDefault();
+      var sel=v.slice(s,en);
+      ins(ch+sel+PAIRS[ch]);
+      ed.selectionStart=s+1;ed.selectionEnd=s+1+sel.length;
+    }
+  }
+});
+ed.addEventListener("keydown",function(e){
+  if(e.key==="Tab"){e.preventDefault();ins("    ");}
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();run();}
+});
+ed.addEventListener("focus",function(){$("app").classList.add("typing");});
+ed.addEventListener("blur",function(){setTimeout(function(){if(document.activeElement!==ed)$("app").classList.remove("typing");},80);});
+
+/* symbol bar */
+var SYMS=["TAB","{","}","(",")","[","]",";","<",">","#","\"","&","*","=","!","/","\\","_","|","UNDO","REDO"];
+(function(){
+  var bar=$("sym");
+  SYMS.forEach(function(s){
+    var b=document.createElement("button");
+    b.textContent=s==="TAB"?"\u21E5":s==="UNDO"?"\u21B6":s==="REDO"?"\u21B7":s;
+    b.addEventListener("mousedown",function(e){e.preventDefault();});
+    b.addEventListener("click",function(){
+      ed.focus();
+      if(s==="TAB")ins("    ");
+      else if(s==="UNDO")document.execCommand("undo");
+      else if(s==="REDO")document.execCommand("redo");
+      else ins(s);
+    });
+    bar.appendChild(b);
+  });
+})();
+
+/* ---------- files / tabs ---------- */
+function loadFile(){
+  var f=cur();
+  ed.value=f.code;
+  $("lang").textContent=isC(f)?"C":"C++";
+  ed.scrollTop=0;ed.scrollLeft=0;
+  lastLines=0;render();renderTabs();
+}
+function renderTabs(){
+  var t=$("tabs");t.innerHTML="";
+  S.files.forEach(function(f){
+    var b=document.createElement("button");
+    b.textContent=f.name;
+    if(f.id===S.active)b.className="on";
+    b.onclick=function(){if(S.active!==f.id){S.active=f.id;save();loadFile();}else openFileMenu();};
+    t.appendChild(b);
+  });
+  var a=document.createElement("button");a.className="add";a.textContent="+";a.onclick=newFileDialog;t.appendChild(a);
+  var on=t.querySelector(".on");if(on)on.scrollIntoView({inline:"nearest",block:"nearest"});
+}
+function normName(n){
+  n=(n||"").trim().replace(/[^\w.\-]/g,"_");
+  if(!n)n="untitled";
+  if(!/\.(c|cpp)$/i.test(n))n+=".cpp";
+  var base=n,i=1;
+  while(S.files.some(function(f){return f.name.toLowerCase()===n.toLowerCase();})){
+    n=base.replace(/(\.\w+)$/,"_"+(i++)+"$1");
+  }
+  return n;
+}
+function addFile(name,code){
+  var f={id:S.nid++,name:name,code:code};
+  S.files.push(f);S.active=f.id;save();loadFile();
+}
+
+/* ---------- modal ---------- */
+var modalOpen=false;
+function openModal(html){$("card").innerHTML=html;$("modal").classList.add("on");modalOpen=true;}
+function closeModal(){$("modal").classList.remove("on");modalOpen=false;}
+$("modal").addEventListener("click",function(e){if(e.target===$("modal"))closeModal();});
+window.__back=function(){if(modalOpen){closeModal();return true;}return false;};
+function toast(m){var t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove("on");},1600);}
+
+function newFileDialog(){
+  openModal('<h3>New file</h3><input type="text" id="nm" value="untitled.cpp" autocapitalize="off" autocomplete="off">'+
+    '<p>Use <b>.c</b> for C or <b>.cpp</b> for C++.</p>'+
+    '<div class="row"><button class="btn" id="x">Cancel</button><button class="btn pri" id="ok">Create</button></div>');
+  var i=$("nm");setTimeout(function(){i.focus();i.setSelectionRange(0,8);},100);
+  $("x").onclick=closeModal;
+  $("ok").onclick=function(){var n=normName(i.value);closeModal();addFile(n,isC({name:n})?TPL[1].c:TPL[0].c);};
+}
+function renameDialog(){
+  var f=cur();
+  openModal('<h3>Rename file</h3><input type="text" id="nm" value="'+f.name+'" autocapitalize="off" autocomplete="off">'+
+    '<div class="row"><button class="btn" id="x">Cancel</button><button class="btn pri" id="ok">Rename</button></div>');
+  $("x").onclick=closeModal;
+  $("ok").onclick=function(){
+    var old=f.name;f.name="";var n=normName($("nm").value);f.name=n;
+    closeModal();save();loadFile();
+  };
+}
+function deleteDialog(){
+  var f=cur();
+  if(S.files.length<2){toast("Can't delete the only file");return;}
+  openModal('<h3>Delete '+f.name+'?</h3><p>This can\'t be undone.</p>'+
+    '<div class="row"><button class="btn" id="x">Cancel</button><button class="btn dan" id="ok">Delete</button></div>');
+  $("x").onclick=closeModal;
+  $("ok").onclick=function(){
+    S.files=S.files.filter(function(x){return x.id!==f.id;});
+    S.active=S.files[0].id;closeModal();save();loadFile();
+  };
+}
+function templatesDialog(){
+  var h='<h3>Templates</h3>';
+  TPL.forEach(function(t,i){
+    h+='<button class="item" data-i="'+i+'"><span class="ic">'+(t.l==="c"?"C":"+")+'</span><span>'+t.n+
+       '<small>'+(t.l==="c"?"C":"C++")+'</small></span></button>';
+  });
+  openModal(h);
+  Array.prototype.forEach.call($("card").querySelectorAll(".item"),function(b){
+    b.onclick=function(){
+      var t=TPL[+b.dataset.i];
+      var base=t.n.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+      closeModal();addFile(normName(base+"."+t.l),t.c);
+    };
+  });
+}
+function copyText(t){
+  if(window.Android)Android.copy(t);
+  else if(navigator.clipboard)navigator.clipboard.writeText(t);
+  toast("Copied");
+}
+function openFileMenu(){
+  var items=[
+    ["+","New file","",newFileDialog],
+    ["\u2630","Templates","Hello World, STL, OOP, pointers\u2026",templatesDialog],
+    ["\u270E","Rename file","",renameDialog],
+    ["\u29C9","Duplicate","",function(){var f=cur();closeModal();addFile(normName(f.name.replace(/(\.\w+)$/,"_copy$1")),f.code);}],
+    ["\u2398","Copy code","",function(){closeModal();copyText(cur().code);}],
+    ["\u2197","Share code","",function(){closeModal();if(window.Android)Android.share(cur().code,cur().name);else copyText(cur().code);}],
+    ["\u2699","Settings","Compiler, standard, optimisation, font",settingsDialog],
+    ["\u2715","Delete file","",deleteDialog],
+    ["i","About","",aboutDialog]
+  ];
+  var h="";
+  items.forEach(function(it,i){h+='<button class="item" data-i="'+i+'"><span class="ic">'+it[0]+'</span><span>'+it[1]+(it[2]?'<small>'+it[2]+'</small>':'')+'</span></button>';});
+  openModal(h);
+  Array.prototype.forEach.call($("card").querySelectorAll(".item"),function(b){b.onclick=items[+b.dataset.i][3];});
+}
+function opts(list,val){return list.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===val?" selected":"")+'>'+o[1]+'</option>';}).join("");}
+function settingsDialog(){
+  var s=S.set;
+  openModal('<h3>Settings</h3>'+
+   '<div class="set"><span>Font size</span><input type="range" id="s_fs" min="11" max="20" value="'+s.fs+'"></div>'+
+   '<div class="set"><span>Compiler</span><select id="s_comp">'+opts([["gcc","GCC (latest)"],["clang","Clang (latest)"]],s.compiler)+'</select></div>'+
+   '<div class="set"><span>C standard</span><select id="s_c">'+opts([["c89","C89"],["c99","C99"],["c11","C11"],["c17","C17"],["c2x","C23"],["gnu17","GNU17"]],s.cstd)+'</select></div>'+
+   '<div class="set"><span>C++ standard</span><select id="s_cpp">'+opts([["c++11","C++11"],["c++14","C++14"],["c++17","C++17"],["c++20","C++20"],["c++23","C++23"],["gnu++17","GNU++17"]],s.cppstd)+'</select></div>'+
+   '<div class="set"><span>Optimisation</span><select id="s_opt">'+opts([["-O0","-O0 (none)"],["-O1","-O1"],["-O2","-O2"],["-O3","-O3 (max)"],["-Os","-Os (size)"]],s.opt)+'</select></div>'+
+   '<div class="set"><span>Warnings (-Wall -Wextra)</span><button class="tg'+(s.wall?" on":"")+'" id="s_w"></button></div>'+
+   '<div class="set"><span>Auto-close brackets</span><button class="tg'+(s.auto?" on":"")+'" id="s_a"></button></div>'+
+   '<div class="row"><button class="btn pri" id="ok">Done</button></div>');
+  $("s_fs").oninput=function(){s.fs=+this.value;applyFs();save();};
+  $("s_comp").onchange=function(){s.compiler=this.value;save();};
+  $("s_c").onchange=function(){s.cstd=this.value;save();};
+  $("s_cpp").onchange=function(){s.cppstd=this.value;save();};
+  $("s_opt").onchange=function(){s.opt=this.value;save();};
+  $("s_w").onclick=function(){s.wall=!s.wall;this.classList.toggle("on");save();};
+  $("s_a").onclick=function(){s.auto=!s.auto;this.classList.toggle("on");save();};
+  $("ok").onclick=closeModal;
+}
+function aboutDialog(){
+  openModal('<div class="about-logo">&lt;/&gt;</div>'+
+   '<div class="center"><h3 style="margin-bottom:2px">CodeForge</h3><p style="margin:0">C &amp; C++ compiler &middot; v1.0</p></div>'+
+   '<div class="feat">'+
+     '<div><b>No ads</b>Zero ads, zero trackers</div>'+
+     '<div><b>Lightweight</b>Tiny install size</div>'+
+     '<div><b>GCC &amp; Clang</b>C89 &rarr; C23, C++11 &rarr; C++23</div>'+
+     '<div><b>Multi-file</b>Tabs, templates, autosave</div>'+
+     '<div><b>Smart editor</b>Highlighting, auto-indent, symbol bar</div>'+
+     '<div><b>Tap-to-jump</b>Tap an error to go to its line</div>'+
+   '</div>'+
+   '<p class="center" style="color:var(--white);margin-top:4px">Built by <b>Taksh Rana</b></p>'+
+   '<p class="center"><a href="mailto:ranataksh63@gmail.com">ranataksh63@gmail.com</a></p>'+
+   '<p class="center" style="font-size:12px;margin-top:12px">Your code is sent to wandbox.org to be compiled and run, so an internet connection is needed to build. The editor and your files work offline and stay on this device.</p>'+
+   '<div class="row"><button class="btn pri" id="ok">Close</button></div>');
+  $("ok").onclick=closeModal;
+}
+function applyFs(){document.documentElement.style.setProperty("--fs",S.set.fs+"px");lastLines=0;render();}
+
+/* ---------- panel ---------- */
+var ptab="out";
+function setPtab(t){
+  ptab=t;
+  Array.prototype.forEach.call($("ptabs").querySelectorAll("[data-t]"),function(b){b.classList.toggle("on",b.dataset.t===t);});
+  outEl.style.display=t==="out"?"block":"none";
+  stdinEl.style.display=t==="in"?"block":"none";
+  $("panel").classList.remove("min");
+}
+Array.prototype.forEach.call($("ptabs").querySelectorAll("[data-t]"),function(b){b.onclick=function(){setPtab(b.dataset.t);};});
+$("ptoggle").onclick=function(){var p=$("panel");p.classList.toggle("min");this.innerHTML=p.classList.contains("min")?"&#9652;":"&#9662;";};
+$("pclear").onclick=function(){if(ptab==="out")outEl.innerHTML="";else{stdinEl.value="";S.stdin="";save();}};
+$("pcopy").onclick=function(){copyText(ptab==="out"?outEl.innerText:stdinEl.value);};
+stdinEl.value=S.stdin||"";
+stdinEl.addEventListener("input",function(){S.stdin=stdinEl.value;save();});
+
+/* ---------- compile & run ---------- */
+var cbs={};
+window.__cb=function(id,res){
+  var f=cbs[id];delete cbs[id];
+  if(!f)return;
+  var r;try{r=JSON.parse(res);}catch(e){r={error:String(res).slice(0,300)||"Unexpected response from server"};}
+  f(r);
+};
+function colorize(txt){
+  var h=esc(txt);
+  h=h.replace(/(prog\.\w+):(\d+):(\d+):\s+(fatal error|error|warning|note):/g,function(_,f,l,c,k){
+    var cls=k==="warning"?"w":k==="note"?"nt":"e";
+    return '<a class="loc" data-l="'+l+'" data-c="'+c+'">'+f+":"+l+":"+c+'</a>: <span class="'+cls+'">'+k+":</span>";
+  });
+  return h;
+}
+outEl.addEventListener("click",function(e){
+  var a=e.target.closest&&e.target.closest("a.loc");
+  if(a)gotoLine(+a.dataset.l,+a.dataset.c);
+});
+function gotoLine(l,c){
+  var lines=ed.value.split("\n"),pos=0;
+  for(var i=0;i<l-1&&i<lines.length;i++)pos+=lines[i].length+1;
+  var len=(lines[l-1]||"").length;
+  var lh=parseFloat(getComputedStyle(ed).lineHeight)||22;
+  ed.scrollTop=Math.max(0,(l-3)*lh);
+  ed.focus();
+  ed.setSelectionRange(pos+Math.max(0,c-1),pos+len);
+  syncScroll();
+}
+var running=false;
+function run(){
+  if(running)return;
+  ed.blur();
+  var f=cur(),c=isC(f);
+  var flags=["-std="+(c?S.set.cstd:S.set.cppstd),S.set.opt];
+  if(S.set.wall)flags.push("-Wall","-Wextra");
+  var comp=(S.set.compiler==="clang"?"clang-head":"gcc-head")+(c?"-c":"");
+  var payload={compiler:comp,code:f.code,stdin:S.stdin||"","compiler-option-raw":flags.join("\n"),"runtime-option-raw":"",save:false};
+  running=true;$("run").classList.add("busy");
+  setPtab("out");
+  outEl.innerHTML='<span class="dim"><span class="spin"></span>Compiling '+esc(f.name)+" with "+(S.set.compiler==="clang"?"Clang":"GCC")+"\u2026</span>";
+  var t0=Date.now();
+  var done=function(r){
+    running=false;$("run").classList.remove("busy");
+    var ms=Date.now()-t0,h="";
+    if(r.error){outEl.innerHTML='<span class="e">'+esc(r.error)+"</span>";return;}
+    if(typeof r.status==="undefined"&&typeof r.program_message==="undefined"&&typeof r.compiler_message==="undefined"){
+      outEl.innerHTML='<span class="e">'+esc(JSON.stringify(r).slice(0,400))+"</span>";return;
+    }
+    if(r.compiler_message)h+=colorize(r.compiler_message)+(/\n$/.test(r.compiler_message)?"":"\n");
+    var compileFailed=r.compiler_message&&String(r.status)!=="0"&&!r.program_message&&!r.program_output;
+    if(r.program_message)h+=(h?"\n":"")+esc(r.program_message);
+    else if(r.program_output||r.program_error)h+=(h?"\n":"")+esc((r.program_output||"")+(r.program_error||""));
+    if(h&&!/\n$/.test(h))h+="\n";
+    if(compileFailed)h+='\n<span class="e">\u2716 Compilation failed</span>';
+    else if(r.signal)h+='\n<span class="e">\u2716 Crashed: '+esc(r.signal)+"</span>";
+    else if(String(r.status)==="0")h+='\n<span class="ok">\u2713 Finished</span> <span class="dim">in '+ms+" ms</span>";
+    else h+='\n<span class="e">\u2716 Exited with code '+esc(String(r.status))+"</span>";
+    outEl.innerHTML=h;
+  };
+  var id="c"+t0;cbs[id]=done;
+  if(window.Android){Android.compile(JSON.stringify(payload),id);}
+  else{
+    fetch("https://wandbox.org/api/compile.json",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+      .then(function(r){return r.text();}).then(function(t){window.__cb(id,t);})
+      .catch(function(e){window.__cb(id,JSON.stringify({error:"Network error: "+e.message}));});
+  }
+}
+$("run").onclick=run;
+$("menuBtn").onclick=openFileMenu;
+$("lang").onclick=function(){
+  var f=cur();
+  var nn=isC(f)?f.name.replace(/\.c$/i,".cpp"):f.name.replace(/\.\w+$/,".c");
+  var old=f.name;f.name="";f.name=normName(nn);
+  save();loadFile();toast("Switched to "+(isC(f)?"C":"C++"));
+};
+
+/* ---------- boot ---------- */
+applyFs();
+loadFile();
+</script>
+</body>
+</html>
